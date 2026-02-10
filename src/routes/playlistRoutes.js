@@ -1,5 +1,6 @@
-// playlistRoutes.js
+// src/routes/playlistRoutes.js
 const express = require("express");
+const auth = require("../middleware/authMiddleware");
 const router = express.Router();
 const {
     createPlaylist,
@@ -11,14 +12,14 @@ const {
     updatePlaylist
 } = require("../controllers/playlistController");
 
-router.post("/", createPlaylist);
+
 router.get("/", getPlaylists);
 router.get("/:id", getPlaylistById);
-router.delete("/:id", deletePlaylist);
+router.post("/", auth, createPlaylist);
+router.put("/:id", auth, updatePlaylist);
+router.delete("/:id", auth, deletePlaylist);
+router.post("/:id/songs", auth, addSongToPlaylist);
+router.delete("/:id/songs/:songId", auth, removeSongFromPlaylist);
 
-
-router.post("/:id/songs", addSongToPlaylist);
-router.delete("/:id/songs/:songId", removeSongFromPlaylist);
-router.put("/:id", updatePlaylist);
 
 module.exports = router;

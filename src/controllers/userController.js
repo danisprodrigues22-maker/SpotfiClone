@@ -1,4 +1,4 @@
-//userController.js
+//src/controllers/userController.js
 const User = require("../models/userModel");
 
 const getUsers = async (req, res) => { 

@@ -1,4 +1,4 @@
-//songModel.js
+//src/models/songModel.js
 const mongoose = require("mongoose");
 
 const songSchema = new mongoose.Schema(

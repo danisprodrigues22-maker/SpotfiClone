@@ -1,5 +1,6 @@
-// songRoutes.js
+// src/routes/songRoutes.js
 const express = require("express");
+const auth = require("../middleware/authMiddleware");
 const router = express.Router();
 const {
   getSongs,
@@ -9,19 +10,10 @@ const {
   deleteSong
 } = require("../controllers/songController");
 
-// list + filtros: GET /api/songs?q=&artist=&genre=&page=&limit=
 router.get("/", getSongs);
-
-// detalhes
 router.get("/:id", getSongId);
-
-// criar (sem upload de arquivo - espera audioUrl no body por enquanto)
-router.post("/", createSong);
-
-// atualizar
-router.put("/:id", updateSong);
-
-// deletar
-router.delete("/:id", deleteSong);
+router.post("/", auth, createSong);
+router.put("/:id", auth, updateSong);
+router.delete("/:id", auth, deleteSong);
 
 module.exports = router;

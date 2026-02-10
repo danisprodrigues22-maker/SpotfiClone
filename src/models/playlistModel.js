@@ -1,4 +1,4 @@
-// playlistModel.js
+// src/models/playlistModel.js
 const mongoose = require("mongoose");
 
 const playlistSchema = new mongoose.Schema(

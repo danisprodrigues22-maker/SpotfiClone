@@ -1,7 +1,7 @@
-// songController.js
+// src/controllers/songController.js
 const mongoose = require("mongoose");
-const Song = require("../models/songModel"); // seu model exporta Music, aqui chamamos de Song
-const Playlist = require("../models/playlistModel"); // para limpar referências quando deletar
+const Song = require("../models/songModel");
+const Playlist = require("../models/playlistModel");
 
 // Helpers
 function isObjectId(id) {
@@ -15,7 +15,6 @@ const getSongs = async (req, res) => {
     const filter = {};
 
     if (q) {
-      // busca por título (case-insensitive)
       filter.title = { $regex: q, $options: "i" };
     }
     if (artist) filter.artist = { $regex: artist, $options: "i" };
@@ -28,7 +27,7 @@ const getSongs = async (req, res) => {
           .sort({ createdAt: -1 })
           .skip(skip)
           .limit(Math.max(parseInt(limit, 10), 1))
-          .populate("createdBy", "name email"), // popula informações do criador
+          .populate("createdBy", "name email"),
       Song.countDocuments(filter)
     ]);
 
@@ -38,7 +37,7 @@ const getSongs = async (req, res) => {
         total,
         page: Number(page),
         limit: Number(limit),
-        pages: Math.ceil(total / Number(limit) || 1)
+        pages: Math.max(1, Math.ceil(total / Number(limit)))
       }
     });
   } catch (error) {
@@ -64,20 +63,22 @@ const getSongId = async (req, res) => {
 };
 
 // POST /api/songs
-// Nota: enquanto não tiver autenticação, passe createdBy no body como userId
+// PROTEGIDO: deve ser chamado com Authorization: Bearer <token>
+// createdBy será obtido de req.user.id (setado pelo auth middleware)
 const createSong = async (req, res) => {
   try {
-    const { title, artist, album, genre, duration, audioUrl, createdBy } = req.body;
+    // req.user is provided by auth middleware
+    const userId = req.user && req.user.id;
+    if (!userId) return res.status(401).json({ message: "Unauthorized" });
 
-    // validações básicas
-    if (!title || !artist || !duration || !audioUrl || !createdBy) {
-      return res.status(400).json({ message: "Campos obrigatórios: title, artist, duration, audioUrl, createdBy" });
+    const { title, artist, album, genre, duration, audioUrl } = req.body;
+
+    if (!title || !artist || !duration || !audioUrl) {
+      return res.status(400).json({ message: "Campos obrigatórios: title, artist, duration, audioUrl" });
     }
+
     if (typeof duration !== "number" && !/^\d+$/.test(duration)) {
       return res.status(400).json({ message: "Duration deve ser um número (segundos)" });
-    }
-    if (!isObjectId(createdBy)) {
-      return res.status(400).json({ message: "createdBy deve ser um ObjectId válido" });
     }
 
     const song = new Song({
@@ -87,36 +88,49 @@ const createSong = async (req, res) => {
       genre: genre?.trim(),
       duration: Number(duration),
       audioUrl: audioUrl.trim(),
-      createdBy
+      createdBy: userId
     });
 
     await song.save();
-    // popula o campo createdBy antes de devolver
     await song.populate("createdBy", "name email");
     res.status(201).json(song);
   } catch (error) {
     console.error("createSong error:", error);
-    // se for erro de validação do mongoose, devolve mensagem
     res.status(400).json({ message: error.message || "Erro ao criar música" });
   }
 };
 
 // PUT /api/songs/:id
+// PROTEGIDO: apenas o criador (createdBy) pode atualizar
 const updateSong = async (req, res) => {
   try {
     const { id } = req.params;
     if (!isObjectId(id)) return res.status(400).json({ message: "Id inválido" });
 
-    // evita sobrescrever campos não permitidos (exemplo: plays direto)
+    const song = await Song.findById(id);
+    if (!song) return res.status(404).json({ message: "Música não encontrada" });
+
+    // ownership check
+    const userId = req.user && req.user.id;
+    if (!userId) return res.status(401).json({ message: "Unauthorized" });
+
+    if (song.createdBy && song.createdBy.toString() !== userId) {
+      return res.status(403).json({ message: "Only song owner can modify this song" });
+    }
+
+    // evita sobrescrever campos não permitidos (exemplo: plays, createdBy)
     const allowed = ["title","artist","album","genre","duration","audioUrl"];
     const update = {};
     for (const k of allowed) {
       if (k in req.body) update[k] = (typeof req.body[k] === "string" ? req.body[k].trim() : req.body[k]);
     }
 
-    const updated = await Song.findByIdAndUpdate(id, update, { new: true }).populate("createdBy", "name email");
-    if (!updated) return res.status(404).json({ message: "Música não encontrada" });
+    // se não houver campos válidos enviados
+    if (Object.keys(update).length === 0) {
+      return res.status(400).json({ message: "Nothing to update. Allowed fields: title, artist, album, genre, duration, audioUrl" });
+    }
 
+    const updated = await Song.findByIdAndUpdate(id, update, { new: true }).populate("createdBy", "name email");
     res.status(200).json(updated);
   } catch (error) {
     console.error("updateSong error:", error);
@@ -125,18 +139,28 @@ const updateSong = async (req, res) => {
 };
 
 // DELETE /api/songs/:id
+// PROTEGIDO: apenas o criador pode deletar
 const deleteSong = async (req, res) => {
   try {
     const { id } = req.params;
     if (!isObjectId(id)) return res.status(400).json({ message: "Id inválido" });
 
+    const song = await Song.findById(id);
+    if (!song) return res.status(404).json({ message: "Música não encontrada" });
+
+    const userId = req.user && req.user.id;
+    if (!userId) return res.status(401).json({ message: "Unauthorized" });
+
+    if (song.createdBy && song.createdBy.toString() !== userId) {
+      return res.status(403).json({ message: "Only song owner can delete this song" });
+    }
+
     const removed = await Song.findByIdAndDelete(id);
-    if (!removed) return res.status(404).json({ message: "Música não encontrada" });
+    if (!removed) return res.status(404).json({ message: "Música não encontrada (ou já removida)" });
 
-    // opcional: remover referências da música em todas as playlists
-    await Playlist.updateMany({}, { $pull: { songs: removed._id } });
+    // remover referências da música em todas as playlists (estrutura: songs: [{ song: ObjectId, addedAt }])
+    await Playlist.updateMany({}, { $pull: { songs: { song: removed._id } } });
 
-    // 204 No Content é ok, mas devolver o id pode ajudar no front
     return res.status(200).json({ message: "Música removida", id: removed._id });
   } catch (error) {
     console.error("deleteSong error:", error);
