@@ -1,6 +1,9 @@
 // src/routes/songRoutes.js
 const express = require("express");
 const auth = require("../middleware/authMiddleware");
+const validate = require("../middleware/validate");
+const { songSchema, songUpdateSchema } = require("../validation/schemas");
+
 const router = express.Router();
 const {
   getSongs,
@@ -12,8 +15,10 @@ const {
 
 router.get("/", getSongs);
 router.get("/:id", getSongId);
-router.post("/", auth, createSong);
-router.put("/:id", auth, updateSong);
+// validação aplicada: criar música exige schema completo
+router.post("/", auth, validate(songSchema), createSong);
+// na atualização, campos permitidos são opcionais
+router.put("/:id", auth, validate(songUpdateSchema), updateSong);
 router.delete("/:id", auth, deleteSong);
 
 module.exports = router;
