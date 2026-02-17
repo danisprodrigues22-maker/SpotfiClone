@@ -1,23 +1,21 @@
-// src/middleware/validate.js
-const Joi = require("joi");
-
-const validate = (schema) => {
-  return async (req, res, next) => {
+module.exports = (schema) => {
+  return (req, res, next) => {
     try {
-      const validated = await schema.validateAsync(req.body, {
+      const { error, value } = schema.validate(req.body, {
         abortEarly: false,
-        stripUnknown: true
+        stripUnknown: true,
       });
 
-      req.body = validated;
-      next();
-    } catch (error) {
-      return res.status(400).json({
-        message: "Payload inválido",
-        errors: error.details.map(d => d.message)
-      });
+      if (error) {
+        return res.status(400).json({
+          message: error.details.map(d => d.message).join(", "),
+        });
+      }
+
+      req.body = value; // dados limpos
+      next(); // segue para o controller
+    } catch (err) {
+      next(err);
     }
   };
 };
-
-module.exports = validate;

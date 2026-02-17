@@ -125,10 +125,26 @@ const deleteSong = async (req, res) => {
   }
 };
 
+const incrementPlay = async (req, res) => {
+  try {
+    const song = await Song.findByIdAndUpdate(
+      req.params.id,
+      { $inc: { plays: 1 } },
+      { new: true }
+    );
+
+    res.status(200).json(song);
+  } catch (err) {
+    res.status(500).json({ message: "Error updating plays" });
+  }
+};
+
+
 module.exports = {
   getSongs,
   getSongId,
   createSong,
   updateSong,
-  deleteSong
+  deleteSong,
+  incrementPlay
 };

@@ -10,7 +10,8 @@ const {
   getSongId,
   createSong,
   updateSong,
-  deleteSong
+  deleteSong,
+  incrementPlay
 } = require("../controllers/songController");
 
 router.get("/", getSongs);
@@ -20,5 +21,6 @@ router.post("/", auth, validate(songSchema), createSong);
 // na atualização, campos permitidos são opcionais
 router.put("/:id", auth, validate(songUpdateSchema), updateSong);
 router.delete("/:id", auth, deleteSong);
+router.patch("/:id/play", incrementPlay);
 
 module.exports = router;
