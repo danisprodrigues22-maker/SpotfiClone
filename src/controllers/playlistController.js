@@ -2,6 +2,8 @@
 const mongoose = require("mongoose");
 const Playlist = require("../models/playlistModel");
 const Song = require("../models/songModel");
+const LIKED_PLAYLIST_NAME = "Liked Songs";
+
 
 const isValidObjectId = (id) => mongoose.Types.ObjectId.isValid(id);
 
@@ -34,17 +36,51 @@ const createPlaylist = async (req, res) => {
 
 // GET /api/playlists
 const getPlaylists = async (req, res) => {
-    try {
-        const playlists = await Playlist.find()
-            .populate("owner", "name email")
-            .sort({ createdAt: -1 });
+  try {
+    const playlists = await Playlist.find({ name: { $ne: LIKED_PLAYLIST_NAME } })
+      .populate("owner", "name email")
+      .sort({ createdAt: -1 });
 
-        res.status(200).json(playlists);
-    } catch (error) {
-        console.error("getPlaylists error:", error);
-        res.status(500).json({ message: "Error fetching playlists" });
-    }
+    res.status(200).json(playlists);
+  } catch (error) {
+    console.error("getPlaylists error:", error);
+    res.status(500).json({ message: "Error fetching playlists" });
+  }
 };
+
+// GET /api/playlists/me/liked
+// PROTEGIDO: retorna (e cria se não existir) a playlist "Liked Songs" do usuário logado
+const getMyLikedPlaylist = async (req, res) => {
+  try {
+    const owner = req.user && req.user.id;
+    if (!owner) return res.status(401).json({ message: "Unauthorized" });
+
+    let playlist = await Playlist.findOne({ owner, name: LIKED_PLAYLIST_NAME })
+      .populate("owner", "name email")
+      .populate("songs.song");
+
+    if (!playlist) {
+      playlist = await Playlist.create({
+        name: LIKED_PLAYLIST_NAME,
+        description: "Músicas curtidas automaticamente",
+        owner,
+        isPublic: false,
+        songs: [],
+      });
+
+      playlist = await Playlist.findById(playlist._id)
+        .populate("owner", "name email")
+        .populate("songs.song");
+    }
+
+    return res.status(200).json(playlist);
+  } catch (error) {
+    console.error("getMyLikedPlaylist error:", error);
+    return res.status(500).json({ message: "Error fetching liked playlist" });
+  }
+};
+
+
 
 // GET /api/playlists/:id
 const getPlaylistById = async (req, res) => {
@@ -236,5 +272,6 @@ module.exports = {
     addSongToPlaylist,
     removeSongFromPlaylist,
     deletePlaylist,
-    updatePlaylist
+    updatePlaylist,
+    getMyLikedPlaylist
 };

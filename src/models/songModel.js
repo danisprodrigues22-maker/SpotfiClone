@@ -21,6 +21,12 @@ const songSchema = new mongoose.Schema(
             trim: true
         },
 
+        coverUrl: {
+            type: String,
+            default: "/uploads/covers/default.jpg",
+        },
+
+
         genre: {
             type: String,
             trim: true

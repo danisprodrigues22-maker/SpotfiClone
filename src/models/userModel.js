@@ -22,7 +22,11 @@ const userSchema = new mongoose.Schema(
   type: String,
   required: true,
   select: false
-}
+},
+likedSongs: [
+  { type: require("mongoose").Schema.Types.ObjectId, ref: "Song", default: [] }
+],
+
 
     },
     { timestamps: true }

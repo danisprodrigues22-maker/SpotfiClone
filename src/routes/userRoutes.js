@@ -7,10 +7,18 @@ const {
   getUsers,
   getUserId,
   updateUser,
-  deleteUser
+  deleteUser,
+  getMyLikes,
+  likeSong,
+  unlikeSong,
 } = require("../controllers/userController");
 
 // 🔒 Todas as rotas protegidas com JWT
+
+// ✅ Likes (tem que vir ANTES do "/:id")
+router.get("/me/likes", auth, getMyLikes);
+router.post("/me/likes/:songId", auth, likeSong);
+router.delete("/me/likes/:songId", auth, unlikeSong);
 
 // GET todos usuários
 router.get("/", auth, getUsers);
@@ -20,7 +28,6 @@ router.get("/:id", auth, getUserId);
 
 // UPDATE usuário
 router.put("/:id", auth, updateUser);
-// router.patch("/:id", auth, updateUser); // opcional
 
 // DELETE usuário
 router.delete("/:id", auth, deleteUser);
