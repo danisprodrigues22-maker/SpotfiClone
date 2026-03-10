@@ -11,9 +11,13 @@ const {
   createSong,
   updateSong,
   deleteSong,
-  incrementPlay
+  incrementPlay,
+  getTopSongs,
+  searchSongs
 } = require("../controllers/songController");
 
+router.get("/top", getTopSongs);
+router.get("/search", searchSongs);
 router.get("/", getSongs);
 router.get("/:id", getSongId);
 // validação aplicada: criar música exige schema completo

@@ -26,7 +26,12 @@ const userSchema = new mongoose.Schema(
 likedSongs: [
   { type: require("mongoose").Schema.Types.ObjectId, ref: "Song", default: [] }
 ],
-
+recentPlays: [
+  {
+    song: { type: mongoose.Schema.Types.ObjectId, ref: "Song", required: true },
+    playedAt: { type: Date, default: Date.now }
+  }
+]
 
     },
     { timestamps: true }

@@ -146,12 +146,125 @@ const unlikeSong = async (req, res) => {
   }
 };
 
+// POST /api/users/me/recent/:songId  (PROTEGIDO)
+const addRecentPlay = async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    const { songId } = req.params;
+
+    if (!userId) return res.status(401).json({ message: "Unauthorized" });
+    if (!isValidObjectId(songId)) return res.status(400).json({ message: "Invalid song id" });
+
+    const songExists = await Song.findById(songId);
+    if (!songExists) return res.status(404).json({ message: "Song not found" });
+
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    // remove se já existir (pra ficar no topo sem duplicar)
+    user.recentPlays = (user.recentPlays || []).filter(
+      (it) => it.song.toString() !== songId
+    );
+
+    // adiciona no topo
+    user.recentPlays.unshift({ song: songId, playedAt: new Date() });
+
+    // limita a 20 itens
+    user.recentPlays = user.recentPlays.slice(0, 20);
+
+    await user.save();
+
+    return res.status(200).json({ message: "Recent play saved" });
+  } catch (err) {
+    console.error("addRecentPlay error:", err);
+    return res.status(500).json({ message: "Error saving recent play" });
+  }
+};
+
+// GET /api/users/me/recent  (PROTEGIDO)
+const getMyRecentPlays = async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ message: "Unauthorized" });
+
+    const user = await User.findById(userId).populate("recentPlays.song");
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    // retorna só as músicas (já populadas), em ordem
+    const songs = (user.recentPlays || [])
+      .map((it) => it.song)
+      .filter(Boolean);
+
+    return res.status(200).json({ songs });
+  } catch (err) {
+    console.error("getMyRecentPlays error:", err);
+    return res.status(500).json({ message: "Error fetching recent plays" });
+  }
+};
+
+// GET /api/users/me/top
+const getMyTopSongs = async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ message: "Unauthorized" });
+
+    const userObjectId = new mongoose.Types.ObjectId(userId);
+
+    const result = await User.aggregate([
+      { $match: { _id: userObjectId } },
+
+      { $unwind: "$recentPlays" },
+
+      {
+        $group: {
+          _id: "$recentPlays.song",
+          count: { $sum: 1 },
+        },
+      },
+
+      { $sort: { count: -1 } },
+
+      { $limit: 10 },
+
+      {
+        $lookup: {
+          from: "songs",
+          localField: "_id",
+          foreignField: "_id",
+          as: "song",
+        },
+      },
+
+      { $unwind: "$song" },
+
+      {
+        $project: {
+          _id: "$song._id",
+          title: "$song.title",
+          artist: "$song.artist",
+          coverUrl: "$song.coverUrl",
+          audioUrl: "$song.audioUrl",
+          count: 1,
+        },
+      },
+    ]);
+
+    return res.status(200).json({ songs: result });
+  } catch (err) {
+    console.error("getMyTopSongs error:", err);
+    return res.status(500).json({ message: "Error fetching top songs" });
+  }
+};
+
 module.exports = {
   getUsers,
   getUserId,
+  getMyRecentPlays,
   updateUser,
   deleteUser,
   getMyLikes,
   likeSong,
   unlikeSong,
+  addRecentPlay,
+  getMyTopSongs,
 };

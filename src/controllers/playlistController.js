@@ -1,4 +1,3 @@
-// src/controllers/playlistController.js
 const mongoose = require("mongoose");
 const Playlist = require("../models/playlistModel");
 const Song = require("../models/songModel");
@@ -83,27 +82,40 @@ const getMyLikedPlaylist = async (req, res) => {
 
 
 // GET /api/playlists/:id
+// PROTEGIDO: apenas o dono pode visualizar
 const getPlaylistById = async (req, res) => {
-    try {
-        const { id } = req.params;
+  try {
+    const { id } = req.params;
 
-        if (!isValidObjectId(id)) {
-            return res.status(400).json({ message: "Invalid playlist id" });
-        }
-
-        const playlist = await Playlist.findById(id)
-            .populate("owner", "name email")
-            .populate("songs.song");
-
-        if (!playlist) {
-            return res.status(404).json({ message: "Playlist not found" });
-        }
-
-        res.status(200).json(playlist);
-    } catch (error) {
-        console.error("getPlaylistById error:", error);
-        res.status(500).json({ message: "Error fetching playlist" });
+    if (!isValidObjectId(id)) {
+      return res.status(400).json({ message: "Invalid playlist id" });
     }
+
+    const playlist = await Playlist.findById(id)
+      .populate("owner", "name email")
+      .populate("songs.song");
+
+    if (!playlist) {
+      return res.status(404).json({ message: "Playlist not found" });
+    }
+
+    const userId = req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    // 🔒 trava principal
+    if (playlist.owner._id.toString() !== userId) {
+      return res.status(403).json({ message: "Forbidden" });
+    }
+
+    res.status(200).json(playlist);
+
+  } catch (error) {
+    console.error("getPlaylistById error:", error);
+    res.status(500).json({ message: "Error fetching playlist" });
+  }
 };
 
 // POST /api/playlists/:id/songs
@@ -189,6 +201,26 @@ const removeSongFromPlaylist = async (req, res) => {
     }
 };
 
+// GET /api/playlists/me (PROTEGIDO)
+const getMyPlaylists = async (req, res) => {
+  try {
+    const owner = req.user && req.user.id;
+    if (!owner) return res.status(401).json({ message: "Unauthorized" });
+
+    const playlists = await Playlist.find({
+      owner,
+      name: { $ne: LIKED_PLAYLIST_NAME }
+    })
+      .populate("owner", "name email")
+      .sort({ createdAt: -1 });
+
+    return res.status(200).json(playlists);
+  } catch (error) {
+    console.error("getMyPlaylists error:", error);
+    return res.status(500).json({ message: "Error fetching my playlists" });
+  }
+};
+
 // DELETE /api/playlists/:id
 // PROTEGIDO: apenas owner pode deletar
 const deletePlaylist = async (req, res) => {
@@ -269,6 +301,7 @@ module.exports = {
     createPlaylist,
     getPlaylists,
     getPlaylistById,
+    getMyPlaylists,
     addSongToPlaylist,
     removeSongFromPlaylist,
     deletePlaylist,

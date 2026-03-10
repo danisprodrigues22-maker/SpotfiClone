@@ -11,6 +11,9 @@ const {
   getMyLikes,
   likeSong,
   unlikeSong,
+  addRecentPlay,
+  getMyRecentPlays,
+  getMyTopSongs,
 } = require("../controllers/userController");
 
 // 🔒 Todas as rotas protegidas com JWT
@@ -19,6 +22,9 @@ const {
 router.get("/me/likes", auth, getMyLikes);
 router.post("/me/likes/:songId", auth, likeSong);
 router.delete("/me/likes/:songId", auth, unlikeSong);
+router.get("/me/recent", auth, getMyRecentPlays);
+router.get("/me/top", auth, getMyTopSongs);
+router.post("/me/recent/:songId", auth, addRecentPlay);
 
 // GET todos usuários
 router.get("/", auth, getUsers);
@@ -31,5 +37,6 @@ router.put("/:id", auth, updateUser);
 
 // DELETE usuário
 router.delete("/:id", auth, deleteUser);
+
 
 module.exports = router;

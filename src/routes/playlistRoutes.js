@@ -9,6 +9,7 @@ const router = express.Router();
 const {
   createPlaylist,
   getPlaylists,
+  getMyPlaylists,          // ✅ NOVO
   getPlaylistById,
   addSongToPlaylist,
   removeSongFromPlaylist,
@@ -17,14 +18,15 @@ const {
   updatePlaylist
 } = require("../controllers/playlistController");
 
-// ✅ Rota especial tem que vir ANTES do "/:id"
+// ✅ Rotas /me precisam vir ANTES do "/:id"
 router.get("/me/liked", auth, getMyLikedPlaylist);
+router.get("/me", auth, getMyPlaylists); // ✅ NOVO
 
-// Listar playlists públicas
+// (opcional) listar playlists públicas
 router.get("/", getPlaylists);
 
-// Buscar playlist por ID
-router.get("/:id", getPlaylistById);
+// ✅ Agora protegido
+router.get("/:id", auth, getPlaylistById);
 
 // Criar playlist
 router.post("/", auth, validate(playlistSchema), createPlaylist);

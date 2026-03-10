@@ -10,6 +10,7 @@ const authRoutes = require("./routes/authRoutes");
 const userRoutes = require("./routes/userRoutes");
 const songRoutes = require("./routes/songRoutes");
 const playlistRoutes = require("./routes/playlistRoutes");
+const coverRoutes = require("./routes/coverRoutes");
 
 const app = express();
 
@@ -54,6 +55,8 @@ app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/songs", songRoutes);
 app.use("/api/playlists", playlistRoutes);
+
+app.use("/covers", coverRoutes);
 
 /* -------------------- 404 -------------------- */
 app.use((req, res) => {

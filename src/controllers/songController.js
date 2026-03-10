@@ -1,4 +1,3 @@
-// src/controllers/songController.js
 const mongoose = require("mongoose");
 const Song = require("../models/songModel");
 const Playlist = require("../models/playlistModel");
@@ -139,6 +138,47 @@ const incrementPlay = async (req, res) => {
   }
 };
 
+// GET /api/songs/top?limit=10
+const getTopSongs = async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit || "10", 10);
+
+    const songs = await Song.find()
+      .sort({ plays: -1 })
+      .limit(limit);
+
+    return res.status(200).json({ songs });
+  } catch (err) {
+    console.error("getTopSongs error:", err);
+    return res.status(500).json({ message: "Error fetching top songs" });
+  }
+};
+
+// GET /api/songs/search?q=query
+const searchSongs = async (req, res) => {
+  try {
+    const q = (req.query.q || "").trim();
+
+    if (!q) {
+      return res.status(200).json({ songs: [] });
+    }
+
+    const songs = await Song.find({
+      $or: [
+        { title: { $regex: q, $options: "i" } },
+        { artist: { $regex: q, $options: "i" } }
+      ]
+    })
+      .sort({ plays: -1 })
+      .limit(20);
+
+    res.status(200).json({ songs });
+
+  } catch (error) {
+    console.error("searchSongs error:", error);
+    res.status(500).json({ message: "Erro ao buscar músicas" });
+  }
+};
 
 module.exports = {
   getSongs,
@@ -146,5 +186,7 @@ module.exports = {
   createSong,
   updateSong,
   deleteSong,
-  incrementPlay
+  incrementPlay,
+  getTopSongs,
+  searchSongs,
 };
